@@ -30,14 +30,19 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cometchat: ^3.0.9
+  cometchat_calls_uikit: ^4.0.1
+  cometchat_chat_uikit: ^4.0.3
 
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
+  flutter_callkit_incoming: ^2.0.0+1
   firebase_core: ^2.14.0
   firebase_messaging: ^14.6.3
+  flutter_apns_x: ^0.0.1
+  flutter_apns_only: any
+  shared_preferences: ^2.2.1
 
 dev_dependencies:
   flutter_test:

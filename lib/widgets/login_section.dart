@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_pn/services/cometchat_service.dart';
 
 List<UserModel> userModelList = [
   UserModel("superhero1", "SUPERHERO1", "assets/ironman_avatar.png"),
@@ -17,12 +18,10 @@ class UserModel {
 
 class SampleUsersLoginSection extends StatelessWidget {
   final BuildContext thatContext;
-  final Function onLoginPressed;
 
   const SampleUsersLoginSection({
     Key? key,
     required this.thatContext,
-    required this.onLoginPressed,
   }) : super(key: key);
 
   @override
@@ -35,9 +34,8 @@ class SampleUsersLoginSection extends StatelessWidget {
       childAspectRatio: 3.0,
       children: userModelList
           .map((model) => UserLoginButton(
-              model: model,
-              thatContext: thatContext,
-              onLoginPressed: onLoginPressed))
+        model: model,
+        thatContext: thatContext,))
           .toList(),
     );
   }
@@ -46,13 +44,11 @@ class SampleUsersLoginSection extends StatelessWidget {
 class UserLoginButton extends StatelessWidget {
   final UserModel model;
   final BuildContext thatContext;
-  final Function onLoginPressed;
 
   const UserLoginButton(
       {Key? key,
-      required this.model,
-      required this.thatContext,
-      required this.onLoginPressed})
+        required this.model,
+        required this.thatContext,})
       : super(key: key);
 
   @override
@@ -60,7 +56,10 @@ class UserLoginButton extends StatelessWidget {
     return MaterialButton(
       color: Colors.black,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-      onPressed: () => onLoginPressed(model.uid),
+      onPressed: () async{
+        CometChatService.login(
+            model.uid, context);
+      },
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [

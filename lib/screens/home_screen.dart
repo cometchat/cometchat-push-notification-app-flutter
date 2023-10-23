@@ -1,86 +1,70 @@
-import 'package:cometchat/cometchat_sdk.dart';
+import 'dart:io';
+import 'package:cometchat_chat_uikit/cometchat_chat_uikit.dart' as uikit;
+import 'package:cometchat_chat_uikit/cometchat_chat_uikit.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_pn/services/apns_service.dart';
 import 'package:flutter_pn/services/cometchat_service.dart';
-import 'package:flutter_pn/widgets/message_composer.dart';
-
 import 'package:flutter_pn/services/firebase_service.dart';
+import 'package:flutter_pn/services/globals.dart';
 
 class HomeScreen extends StatefulWidget {
-  final Function onLogout;
   final FirebaseService notificationService = FirebaseService();
+  final APNSService apnsServices = APNSService();
 
   HomeScreen({
     Key? key,
-    required this.onLogout,
   }) : super(key: key);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  User? loggedInUser;
-
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void initState() {
+    WidgetsBinding.instance.addObserver(this);
     super.initState();
+    if (useFcm) {
+      widget.notificationService.init();
+      if (Platform.isAndroid) {
+        widget.notificationService.checkForNavigation(context);
+      }
+    } else {
+      widget.apnsServices.init();
+    }
+  }
 
-    widget.notificationService.init();
+  @override
+  Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
+    if (state == AppLifecycleState.resumed) {
+      if (useFcm && Platform.isAndroid) {
+        widget.notificationService.initMethod(context);
+      }
+    }
+  }
 
-    CometChatService.getLoggedInUser().then((User? user) {
-      setState(() {
-        loggedInUser = user;
-      });
-    });
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(10.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Text(
-                  "Logged in as",
-                  style: TextStyle(
-                    color: Colors.black54,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  "${loggedInUser?.name}",
-                  style: const TextStyle(
-                    color: Colors.blueAccent,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 20.0),
-                const MessageComposer(
-                    sendMessage: CometChatService.sendMessage),
-                Center(
-                  child: MaterialButton(
-                    color: Colors.amber,
-                    onPressed: () async {
-                      await widget.notificationService.deleteToken();
-                      widget.onLogout();
-                      debugPrint("Logging out");
-                    },
-                    child: const Text('Logout'),
-                  ),
-                ),
-                const SizedBox(height: 20.0),
-              ],
+      body: uikit.CometChatConversationsWithMessages(
+        conversationsConfiguration:
+            ConversationsConfiguration(showBackButton: false, appBarOptions: [
+          IconButton(
+            onPressed: () async {
+              await CometChatService.logout(context);
+            },
+            icon: const Icon(
+              Icons.logout,
+              color: Colors.black,
             ),
-          ),
-        ),
+          )
+        ]),
       ),
     );
   }

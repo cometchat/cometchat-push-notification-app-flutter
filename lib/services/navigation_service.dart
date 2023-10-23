@@ -1,13 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_pn/screens/chat_screen.dart';
+
+// This class provides a global key to access the NavigatorState for navigating between screens in the app.
 
 class NavigationService {
-  static final GlobalKey<NavigatorState> navigatorKey =
-      GlobalKey<NavigatorState>();
-
-  static void navigateToChat(String text) {
-    navigatorKey.currentState?.push(
-      MaterialPageRoute(builder: (context) => ChatScreen(chatId: text)),
-    );
-  }
+  static GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 }

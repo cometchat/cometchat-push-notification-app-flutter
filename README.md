@@ -14,7 +14,7 @@
 ![GitHub stars](https://img.shields.io/github/stars/cometchat-pro/android-java-chat-push-notification-app?style=social)
 ![Twitter Follow](https://img.shields.io/twitter/follow/cometchat?style=social)
 
-CometChat Flutter Push Notification Sample App is capable of handling Push notifications for one-on-one (private) and group messaging. This sample app enables the users to send and receive text messages and display the Push notifications for them.
+The CometChat Flutter Push Notification Sample App is capable of handling push notifications for one-on-one (private), group messaging, and even call notifications. This sample app enables users to send and receive text messages, make and receive calls, and effectively displays push notifications for these interactions.
 
 ---
 
@@ -33,14 +33,14 @@ CometChat Flutter Push Notification Sample App is capable of handling Push notif
 
 ## Run the Sample App
 1. Clone this repository.
-2. To configure using FCM, use the `fcm-android-ios-chat` branch and follow the [FCM: Push notifications for messaging on Android and iOS](https://www.cometchat.com/docs/extensions/flutter-push-notifications#fcm-push-notifications-for-messaging-on-android-and-ios) documentation.
-3. To configure using APN, use the `apn-ios-chat` branch and follow the [APN: Push notifications for messaging on iOS](https://www.cometchat.com/docs/extensions/flutter-push-notifications#apn-push-notifications-for-messaging-on-ios) documentation.
-4. Once the app is running on your device or emulator, login with a user.
-5. Allow the permission to display Push notifications.
-6. Put the app in the background or terminate it.
-7. Send a message to the logged in user from another device.
-8. You should see a Push notification for the message.
-9. Tap on the notification to open the Sample app.
+2. To configure using FCM or APN, use the `v4` branch.
+3. Once the app is running on your device or emulator, login with a user.
+4. Allow the permission to display Push notifications.
+5. Put the app in the background or terminate it.
+6. Send a message or call to the logged in user from another device.
+7. You should see a Push notification or call notification for the message or call.
+8. Tap on the notification to open the Sample app for message.
+9. Tap on accept/decline on call notification to initiate or decline call.
 </br>
 
 ## Contribution
@@ -50,6 +50,7 @@ Thanks to the following people who have contributed to this project:
 [👨‍💻 @prathamesh-cometchat 💻](https://github.com/prathamesh-cometchat) <br>
 [👨‍💻 @rohit-cometchat 💻](https://github.com/rohit-cometchat) <br>
 [👨‍💻 @suryanshAtCometChat 💻](https://github.com/suryanshAtCometChat) <br>
+[👨‍💻 @munikirannarpareddi 💻](https://github.com/munikiran-cometchat) <br>
 
 [Contribution guidelines for this project](CONTRIBUTING.md)
 

@@ -1,8 +1,10 @@
+import 'package:cometchat_calls_uikit/cometchat_calls_uikit.dart';
+import 'package:cometchat_chat_uikit/cometchat_chat_uikit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_pn/screens/home_screen.dart';
 import 'package:flutter_pn/screens/login_screen.dart';
 import 'package:flutter_pn/services/cometchat_service.dart';
-import 'package:flutter_pn/services/navigation_service.dart';
+
 
 class GuardScreen extends StatefulWidget {
   const GuardScreen({Key? key}) : super(key: key);
@@ -13,64 +15,41 @@ class GuardScreen extends StatefulWidget {
 
 class _GuardScreenState extends State<GuardScreen> {
   late bool shouldGoToHomeScreen = false;
-  final CometChatService ccService = CometChatService();
-
-  onLogout() {
-    CometChatService.logout().then(
-      (value) {
-        setState(() {
-          shouldGoToHomeScreen = false;
-        });
-      },
-    );
-  }
-
-  onLogin(String uid) {
-    CometChatService.login(uid).then((isLoginSuccess) {
-      if (isLoginSuccess) {
-        setState(() {
-          shouldGoToHomeScreen = true;
-        });
-      }
-    });
-  }
 
   @override
   void initState() {
+    alreadyLoggedIn(context);
     super.initState();
+  }
 
-    CometChatService.init().then(
-      (initVerdict) {
-        if (initVerdict.isInitialized && initVerdict.isUserLoggedIn) {
-          setState(() {
-            shouldGoToHomeScreen = true;
-          });
-        } else {
-          setState(() {
-            shouldGoToHomeScreen = false;
-          });
-        }
-      },
-    );
+  alreadyLoggedIn(context) async {
+    bool isLogin = await CometChatService.isAlreadyLoggedIn();
+    if (isLogin) {
+      final user = await CometChatUIKit.getLoggedInUser();
+      if (user != null) {
+        await CometChatUIKit.login(
+          user.uid,
+          onSuccess: (user) {
+            setState(() {
+              shouldGoToHomeScreen = true;
+            });
+          },
+          onError: (excep) {
+            setState(() {
+              shouldGoToHomeScreen = true;
+            });
+          },
+        );
+      }
+    } else {
+      setState(() {
+        shouldGoToHomeScreen = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: NavigationService.navigatorKey,
-      home: shouldGoToHomeScreen
-          ? HomeScreen(
-              onLogout: onLogout,
-            )
-          : LoginScreen(
-              onLogin: onLogin,
-            ),
-      title: 'CometChat Push notifications sample app',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        scaffoldBackgroundColor: const Color(0xffeeeeee),
-        primarySwatch: Colors.blue,
-      ),
-    );
+    return  (shouldGoToHomeScreen) ? HomeScreen() : const LoginScreen();
   }
 }

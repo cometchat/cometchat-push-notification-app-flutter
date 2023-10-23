@@ -1,26 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_pn/services/cometchat_service.dart';
 import 'package:flutter_pn/widgets/login_section.dart';
 
 class LoginScreen extends StatefulWidget {
-  final Function onLogin;
-
-  const LoginScreen({Key? key, required, required this.onLogin})
-      : super(key: key);
+  const LoginScreen({Key? key, required}) : super(key: key);
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  bool isLoginBlocked = false;
-
   final uidInputController = TextEditingController();
-
-  onLoginPressed(String uid) {
-    if (uid != '') {
-      widget.onLogin(uid);
-    }
-  }
 
   @override
   void dispose() {
@@ -77,7 +67,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   SampleUsersLoginSection(
                     thatContext: context,
-                    onLoginPressed: onLoginPressed,
                   ),
                   const SizedBox(height: 20),
                   const Wrap(
@@ -104,7 +93,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   Center(
                     child: MaterialButton(
                       color: Colors.blue[400],
-                      onPressed: () => onLoginPressed(uidInputController.text),
+                      onPressed: () async {
+                        CometChatService.login(
+                            uidInputController.text, context);
+                      },
                       child: const Text('Login'),
                     ),
                   ),
