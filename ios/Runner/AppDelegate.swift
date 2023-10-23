@@ -39,6 +39,20 @@ func convertDictionaryToJsonString(dictionary: [String: Any]) -> String? {
         if #available(iOS 11.0, *) {
             UNUserNotificationCenter.current().delegate = self as? UNUserNotificationCenterDelegate
         }
+        let appInfoChannel = FlutterMethodChannel(name: "com.cometchat.flutter_pn",
+            binaryMessenger: controller.binaryMessenger)
+        
+        appInfoChannel.setMethodCallHandler({
+              (call: FlutterMethodCall, result: @escaping FlutterResult) -> Void in
+              if call.method == "getAppInfo" {
+                var appInfo: [String: String] = [:]
+                appInfo["bundleId"] = Bundle.main.bundleIdentifier
+                appInfo["version"] = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+                result(appInfo)
+              } else {
+                result(FlutterMethodNotImplemented)
+              }
+            })
 
         //Setup VOIP
         let mainQueue = DispatchQueue.main

@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'package:cometchat_calls_uikit/cometchat_calls_uikit.dart';
 import 'package:cometchat_chat_uikit/cometchat_chat_uikit.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_pn/consts.dart';
 import 'package:flutter_pn/screens/guard_screen.dart';
 import 'package:flutter_pn/screens/home_screen.dart';
+import 'package:flutter_pn/services/demo_meta_info.dart';
 import 'package:flutter_pn/services/firebase_service.dart';
+
+import 'get_info.dart';
 
 
 class CometChatService {
@@ -36,6 +40,19 @@ class CometChatService {
         uiKitSettings: uiKitSettings,
         onSuccess: (String successMessage) {
           debugPrint("Cometchat ui kit Initialization success");
+          try {
+            CometChat.setDemoMetaInfo(jsonObject: {
+              "name": DemoMetaInfoConstants.name,
+              "type": DemoMetaInfoConstants.type,
+              "version": info["version"] ?? DemoMetaInfoConstants.version,
+              "bundle": info["bundleId"] ?? DemoMetaInfoConstants.bundle,
+              "platform": DemoMetaInfoConstants.platform,
+            });
+          } catch (e) {
+            if (kDebugMode) {
+              debugPrint("setDemoMetaInfo ended with error");
+            }
+          }
         },
         onError: (CometChatException e) {
           debugPrint("Initialization failed with exception: ${e.message}");
