@@ -246,22 +246,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_apns_only:
-    dependency: "direct main"
-    description:
-      name: flutter_apns_only
-      sha256: "70da0d520a5b8088dc7a52abb9a63d3191521c7ec2360461af776cdaee50ab74"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.6.0"
-  flutter_apns_x:
-    dependency: "direct main"
-    description:
-      name: flutter_apns_x
-      sha256: abc6a8cccd24d106c4cfb6f0d58304217a10e3ba51594bca54beee74ae9c8bb0
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.0.1"
   flutter_callkit_incoming:
     dependency: "direct main"
     description:
@@ -286,22 +270,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.2"
-  flutter_local_notifications:
-    dependency: transitive
-    description:
-      name: flutter_local_notifications
-      sha256: bb962bd4cca75452fe81c6c4e36642ac7b2131abbe4de416def12b763670d406
-      url: "https://pub.dev"
-    source: hosted
-    version: "8.2.0"
-  flutter_local_notifications_platform_interface:
-    dependency: transitive
-    description:
-      name: flutter_local_notifications_platform_interface
-      sha256: "7744aad0b3637e6004929efe9ac2dfd3b878f4cecebfb1e9c2dfea5ac7d5c2e7"
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.0.1"
   flutter_localizations:
     dependency: transitive
     description: flutter
@@ -706,14 +674,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.6.0"
-  timezone:
-    dependency: transitive
-    description:
-      name: timezone
-      sha256: "57b35f6e8ef731f18529695bffc62f92c6189fac2e52c12d478dec1931afb66e"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.8.0"
   typed_data:
     dependency: transitive
     description:

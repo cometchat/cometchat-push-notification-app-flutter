@@ -1,7 +1,9 @@
+import 'package:cometchat_calls_uikit/cometchat_calls_uikit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_pn/screens/guard_screen.dart';
 import 'package:flutter_pn/services/cometchat_service.dart';
 import 'package:flutter_pn/services/get_info.dart';
+import 'package:flutter_pn/services/navigation_service.dart';
 import 'package:flutter_pn/services/shared_perferences.dart';
 
 void main() {
@@ -31,6 +33,14 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return const GuardScreen();
+    return MaterialApp(
+      title: 'Push Notifications Sample App',
+      navigatorKey: NavigationService.navigatorKey,
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(),
+      home: GuardScreen(
+        key: CallNavigationContext.navigatorKey,
+      ),
+    );
   }
 }

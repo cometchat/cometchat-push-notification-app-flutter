@@ -2,14 +2,14 @@ import 'dart:io';
 import 'package:cometchat_chat_uikit/cometchat_chat_uikit.dart' as uikit;
 import 'package:cometchat_chat_uikit/cometchat_chat_uikit.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_pn/services/apns_service.dart';
+// import 'package:flutter_pn/services/apns_service.dart';
 import 'package:flutter_pn/services/cometchat_service.dart';
 import 'package:flutter_pn/services/firebase_service.dart';
 import 'package:flutter_pn/services/globals.dart';
 
 class HomeScreen extends StatefulWidget {
   final FirebaseService notificationService = FirebaseService();
-  final APNSService apnsServices = APNSService();
+  // final APNSService apnsServices = APNSService();
 
   HomeScreen({
     Key? key,
@@ -30,7 +30,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         widget.notificationService.checkForNavigation(context);
       }
     } else {
-      widget.apnsServices.init();
+      // If using ios use apns
+      // widget.apnsServices.init();
     }
   }
 

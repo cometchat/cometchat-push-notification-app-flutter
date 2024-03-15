@@ -251,7 +251,7 @@ class FirebaseService {
           },
         );
       }
-      if (messageCategory == 'call' || messageCategory == 'custom') {
+      if (messageCategory == 'call') {
         String callAction = ccMessage['data']['action'];
         String uuid =
             ccMessage['data']['entities']['on']['entity']['sessionid'];

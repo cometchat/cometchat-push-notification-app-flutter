@@ -34,13 +34,14 @@ The CometChat Flutter Push Notification Sample App is capable of handling push n
 ## Run the Sample App
 1. Clone this repository.
 2. To configure using FCM or APN, use the `v4` branch.
-3. Once the app is running on your device or emulator, login with a user.
-4. Allow the permission to display Push notifications.
-5. Put the app in the background or terminate it.
-6. Send a message or call to the logged in user from another device.
-7. You should see a Push notification or call notification for the message or call.
-8. Tap on the notification to open the Sample app for message.
-9. Tap on accept/decline on call notification to initiate or decline call.
+3. To use call notifications in ios use apn.
+4. Once the app is running on your device or emulator, login with a user.
+5. Allow the permission to display Push notifications.
+6. Put the app in the background or terminate it.
+7. Send a message or call to the logged in user from another device.
+8. You should see a Push notification or call notification for the message or call.
+9. Tap on the notification to open the Sample app for message.
+10. Tap on accept/decline on call notification to initiate or decline call.
 </br>
 
 ## Contribution

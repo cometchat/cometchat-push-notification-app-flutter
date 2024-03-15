@@ -40,8 +40,8 @@ dependencies:
   flutter_callkit_incoming: ^2.0.0+1
   firebase_core: ^2.14.0
   firebase_messaging: ^14.6.3
-  flutter_apns_x: ^0.0.1
-  flutter_apns_only: any
+#  flutter_apns_x: ^0.0.1
+#  flutter_apns_only: any
   shared_preferences: ^2.2.1
 
 dev_dependencies:
