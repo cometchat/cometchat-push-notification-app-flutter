@@ -18,7 +18,6 @@ The CometChat Flutter Push Notification Sample App is capable of handling push n
 ## Run the Sample App
 
 1. Clone this repository.
-2. To configure using FCM or APN, use the `v4` branch.
 3. To use call notifications in ios use apn.
 4. Once the app is running on your device or emulator, login with a user.
 5. Allow the permission to display Push notifications.
