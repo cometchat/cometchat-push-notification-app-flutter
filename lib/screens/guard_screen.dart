@@ -14,42 +14,56 @@ class GuardScreen extends StatefulWidget {
 }
 
 class _GuardScreenState extends State<GuardScreen> {
-  late bool shouldGoToHomeScreen = false;
+  late Future<bool> _shouldGoToHomeScreenFuture;
 
   @override
   void initState() {
-    alreadyLoggedIn(context);
     super.initState();
+    _shouldGoToHomeScreenFuture = alreadyLoggedIn();
   }
 
-  alreadyLoggedIn(context) async {
-    bool isLogin = await CometChatService.isAlreadyLoggedIn();
+  Future<bool> alreadyLoggedIn() async {
+    await CometChatService().init();
+    bool isLogin = await CometChatService().isAlreadyLoggedIn();
+    bool shouldGoToHomeScreen = false;
     if (isLogin) {
       final user = await CometChatUIKit.getLoggedInUser();
       if (user != null) {
         await CometChatUIKit.login(
           user.uid,
           onSuccess: (user) {
-            setState(() {
               shouldGoToHomeScreen = true;
-            });
           },
           onError: (excep) {
-            setState(() {
-              shouldGoToHomeScreen = true;
-            });
+              shouldGoToHomeScreen = false;
           },
         );
       }
     } else {
-      setState(() {
         shouldGoToHomeScreen = false;
-      });
+
     }
+    return shouldGoToHomeScreen;
   }
 
   @override
   Widget build(BuildContext context) {
-    return  (shouldGoToHomeScreen) ? HomeScreen() : const LoginScreen();
+    return FutureBuilder<bool>(
+      future: _shouldGoToHomeScreenFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return  Container(
+            color: Colors.white,
+            child: Center(
+              child: Image.asset("assets/cometchat_logo.png"),
+            ),
+          );
+        } else if (snapshot.hasError) {
+          return const LoginScreen(); // or show an error message
+        } else {
+          return snapshot.data == true ? HomeScreen() : const LoginScreen();
+        }
+      },
+    );
   }
 }

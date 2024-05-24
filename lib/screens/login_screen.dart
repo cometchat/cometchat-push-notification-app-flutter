@@ -94,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: MaterialButton(
                       color: Colors.blue[400],
                       onPressed: () async {
-                        CometChatService.login(
+                        CometChatService().login(
                             uidInputController.text, context);
                       },
                       child: const Text('Login'),

@@ -6,4 +6,5 @@ class DemoMetaInfoConstants {
   static String version =  "1.0.0";
   static String bundle =  Platform.isAndroid ? "com.cometchat.flutter_pn" : "com.cometchat.flutterPn";
   static String platform =  "Flutter";
+  static String sampleAppFor =  "enhanced-push-notification";
 }

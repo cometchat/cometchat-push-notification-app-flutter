@@ -1,16 +1,20 @@
 import 'dart:convert';
 import 'package:cometchat_calls_uikit/cometchat_calls_uikit.dart';
 import 'package:cometchat_chat_uikit/cometchat_chat_uikit.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_apns_x/flutter_apns/apns.dart';
-import 'package:flutter_apns_x/flutter_apns/flutter_apns_x.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_apns_x/flutter_apns/src/apns_connector.dart';
 import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
+import 'package:flutter_pn/models/call_action.dart';
+import 'package:flutter_pn/models/call_type.dart';
+import 'package:flutter_pn/models/notification_message_type_constants.dart';
+import 'package:flutter_pn/models/payload_data.dart';
 import 'package:flutter_pn/services/cometchat_service.dart';
-import 'package:flutter_pn/services/navigation_service.dart';
 
 class APNSService with CometChatCallsEventsListener {
-  final _connector = createPushConnector();
+
 
   String? id;
 
@@ -21,25 +25,28 @@ class APNSService with CometChatCallsEventsListener {
 
   // This method handles displaying incoming calls, accepting, declining, or ending calls using the FlutterCallkitIncoming and CometChat.
   Future<void> displayIncomingCall(rMessage) async {
-    dynamic ccMessage = jsonDecode(rMessage.data['message']);
-    String messageCategory = ccMessage['category'];
+
+    PayloadData payloadData = PayloadData.fromJson(rMessage.data);
+    String messageCategory = payloadData.type ?? "";
     if (messageCategory == 'call') {
-      String callAction = ccMessage['data']['action'];
-      String uuid = ccMessage['data']['entities']['on']['entity']['sessionid'];
+
+      CallAction callAction = payloadData.callAction ?? CallAction.none;
+      String uuid = payloadData.sessionId ?? "";
       final callUUID = uuid;
-      String callerName = ccMessage['data']['entities']['by']['entity']['name'];
-      String callType = ccMessage['data']['entities']['on']['entity']['type'];
-      if (callAction == 'initiated') {
+
+      String callerName = payloadData.senderName ?? "";
+      CallType callType = payloadData.callType ?? CallType.none;
+      if (callAction == CallAction.initiated) {
+
         CallKitParams callKitParams = CallKitParams(
           id: callUUID,
           nameCaller: callerName,
           appName: 'notification_new',
-          type: (callType.toString() == "audio") ? 0 : 1,
+          type: (callType == CallType.audio) ? 0 : 1,
           textAccept: 'Accept',
           textDecline: 'Decline',
           duration: 55000,
           ios: const IOSParams(
-            iconName: 'CallKitLogo',
             supportsVideo: true,
             audioSessionMode: 'default',
             audioSessionActive: true,
@@ -48,53 +55,54 @@ class APNSService with CometChatCallsEventsListener {
             ringtonePath: 'system_ringtone_default',
           ),
         );
+
         await FlutterCallkitIncoming.showCallkitIncoming(callKitParams);
       }
     }
   }
 
-  init() {
+  init(BuildContext context) {
+    final _connector = ApnsPushConnector();
+
+    _connector.shouldPresent = (x) => Future.value(false);
+
+
     _connector.configure(
-      onBackgroundMessage: (message) async {
-        debugPrint('onBackgroundMessage: ${message.toString()}');
-        displayIncomingCall(message);
-      },
-
-      // onMessage gets called, when a new notification is received
-      onMessage: (message) async {
-        debugPrint('onMessage: ${message.toString()}');
-      },
-
       // onLaunch gets called, when you tap on notification on a closed app
       onLaunch: (message) async {
         debugPrint('onLaunch: ${message.toString()}');
-        openNotification(message);
+        openNotification(message,context);
       },
 
       // onResume gets called, when you tap on notification with app in background
       onResume: (message) async {
-        debugPrint('onResume: ${message.toString()}');
-        openNotification(message);
+
+        openNotification(message,context);
+
       },
     );
 
     //Requesting user permissions
     _connector.requestNotificationPermissions();
 
+
     //token value get//
     _connector.token.addListener(() {
-      debugPrint('Token ${_connector.token.value}');
+
       if (_connector.token.value != null || _connector.token.value != '') {
-        CometChatService.registerToken(_connector.token.value ?? "", 'apns');
+
+        PNRegistry.registerPNService(_connector.token.value!,false,false);
+
       }
     });
 
     // Push Token VoIP
     FlutterCallkitIncoming.getDevicePushTokenVoIP().then(
           (voipToken) {
-        debugPrint('VoIP token: $voipToken');
+
         if (voipToken != null || voipToken.toString().isNotEmpty) {
-          CometChatService.registerToken(voipToken, 'voip');
+
+          PNRegistry.registerPNService(voipToken,false,true);
         }
       },
     );
@@ -103,46 +111,49 @@ class APNSService with CometChatCallsEventsListener {
 
     FlutterCallkitIncoming.onEvent.listen(
           (CallEvent? callEvent) async {
+
         final Map<String, dynamic> body = callEvent?.body;
-        final Map<dynamic, dynamic>? extra = body['extra'];
-        final String sessionId = extra != null
-            ? jsonDecode(extra['message'])['data']['entities']['on']['entity']
-        ['sessionid']
-            : '';
+
+
+            PayloadData payloadData = PayloadData();
+            if(body['extra']['message']!=null) {
+              payloadData =
+              PayloadData.fromJson(jsonDecode(body['extra']['message']));
+
+        }
+        String sessionId = payloadData.sessionId ?? '';
         id = sessionId;
 
         switch (callEvent?.event) {
           case Event.actionCallIncoming:
             break;
           case Event.actionCallAccept:
-            MainVideoContainerSetting videoSettings =
-            MainVideoContainerSetting();
-            videoSettings.setMainVideoAspectRatio("contain");
-            videoSettings.setNameLabelParams("top-left", true, "#000");
-            videoSettings.setZoomButtonParams("top-right", true);
-            videoSettings.setUserListButtonParams("top-left", true);
-            videoSettings.setFullScreenButtonParams("top-right", true);
-
             CallSettingsBuilder callSettingsBuilder = (CallSettingsBuilder()
               ..enableDefaultLayout = true
-              ..setMainVideoContainerSetting = videoSettings);
+            ..setAudioOnlyCall=payloadData.callType == CallType.audio);
 
             CometChatUIKitCalls.acceptCall(sessionId,
                 onSuccess: (Call call) async {
                   call.category = MessageCategoryConstants.call;
                   CometChatCallEvents.ccCallAccepted(call);
-                  NavigationService.navigatorKey.currentState
-                      ?.push(
-                    MaterialPageRoute(
-                      builder: (context) => CometChatOngoingCall(
-                        callSettingsBuilder: callSettingsBuilder,
-                        sessionId: sessionId,
-                      ),
+                  await FlutterCallkitIncoming.setCallConnected(sessionId);
+                  if(context.mounted) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CometChatOngoingCall(
+                      callSettingsBuilder: callSettingsBuilder,
+                      sessionId: sessionId,
+                      callWorkFlow: CallWorkFlow.defaultCalling,
                     ),
-                  )
-                      .then((_) async =>
-                  await FlutterCallkitIncoming.endCall(sessionId));
-                }, onError: (CometChatException e) {
+                  ),
+                )
+                    .then((_) async {
+                  await const MethodChannel('com.cometchat.flutter_pn').invokeMethod('endCall');
+
+                });
+              }
+            }, onError: (CometChatException e) {
                   debugPrint("===>>>: Error: acceptCall: ${e.message}");
                 });
             break;
@@ -159,7 +170,6 @@ class APNSService with CometChatCallsEventsListener {
             });
             break;
           case Event.actionCallEnded:
-            await FlutterCallkitIncoming.endCall(sessionId);
             break;
           default:
             break;
@@ -177,18 +187,21 @@ class APNSService with CometChatCallsEventsListener {
 
   // This method processes the incoming Remote message to handle user or group notifications and carries out appropriate actions such as initiating a chat or call.
 
-  Future<void> openNotification(RemoteMessage? message) async {
+  Future<void> openNotification(RemoteMessage? message, BuildContext context) async {
     if (message != null) {
-      String response = message.data["message"];
-      dynamic parsedJson = jsonDecode(response);
-      final receiverType = parsedJson['receiverType'] ?? "";
+
+      PayloadData payloadData = PayloadData.fromJson(message.data);
+      if (payloadData.type == NotificationMessageTypeConstants.call) {
+        displayIncomingCall(message);
+      } else {
+      final receiverType = payloadData.receiverType ?? "";
       User? sendUser;
       Group? sendGroup;
-      dynamic ccMessage = jsonDecode(message.data['message']);
-      String messageCategory = ccMessage['category'];
-      debugPrint("Message Type : $messageCategory");
-      if (receiverType == "user") {
-        final uid = parsedJson['sender'];
+
+      String messageCategory = payloadData.type ?? "";
+
+      if (receiverType == CometChatReceiverType.user) {
+        final uid = payloadData.sender ?? "";
         await CometChat.getUser(
           uid,
           onSuccess: (user) {
@@ -199,9 +212,9 @@ class APNSService with CometChatCallsEventsListener {
             debugPrint(excep.message);
           },
         );
-      } else if (receiverType == "group") {
+      } else if (receiverType == CometChatReceiverType.group) {
         final guid =
-        parsedJson['data']['entities']['receiver']['entity']['guid'];
+            payloadData.receiver ?? "";
         await CometChat.getGroup(
           guid,
           onSuccess: (group) {
@@ -213,18 +226,22 @@ class APNSService with CometChatCallsEventsListener {
         );
       }
 
-      if (messageCategory == 'message' &&
-          (receiverType == "user" && sendUser != null) ||
-          (receiverType == "group" && sendGroup != null)) {
-        NavigationService.navigatorKey.currentState?.push(
-          MaterialPageRoute(
-            builder: (context) => CometChatMessages(
-              user: sendUser,
-              group: sendGroup,
-            ),
-          ),
-        );
+      if (messageCategory == NotificationMessageTypeConstants.chat &&
+          (receiverType == CometChatReceiverType.user && sendUser != null) ||
+          (receiverType == CometChatReceiverType.group && sendGroup != null)) {
+        if (context.mounted) {
+          Future.delayed(const Duration(seconds: 2), () {
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (context) =>
+                  CometChatMessages(
+                    user: sendUser,
+                    group: sendGroup,
+                  ),
+            ),);
+          });
+        }
       }
+    }
     }
   }
 }

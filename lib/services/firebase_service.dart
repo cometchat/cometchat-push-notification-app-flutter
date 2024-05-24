@@ -1,6 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
+
 
 import 'package:cometchat_calls_uikit/cometchat_calls_uikit.dart';
 import 'package:cometchat_chat_uikit/cometchat_chat_uikit.dart';
@@ -8,13 +7,18 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_callkit_incoming/entities/android_params.dart';
-import 'package:flutter_callkit_incoming/entities/call_event.dart';
-import 'package:flutter_callkit_incoming/entities/call_kit_params.dart';
+
+import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_pn/consts.dart';
+import 'package:flutter_pn/firebase_options.dart';
+import 'package:flutter_pn/models/call_action.dart';
+import 'package:flutter_pn/models/call_type.dart';
+import 'package:flutter_pn/models/notification_message_type_constants.dart';
+import 'package:flutter_pn/models/payload_data.dart';
 import 'package:flutter_pn/services/cometchat_service.dart';
-import 'package:flutter_pn/services/navigation_service.dart';
+
+
 import 'package:flutter_pn/services/shared_perferences.dart';
 
 // This method handles incoming Firebase messages in the background, specifically for displaying incoming calls on Android platform.
@@ -22,29 +26,33 @@ import 'package:flutter_pn/services/shared_perferences.dart';
 // 1. This has to be defined outside of any class
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage rMessage) async {
-  // Display the incoming call by calling the native call screen
-  if (Platform.isAndroid) {
     await displayIncomingCall(rMessage);
-  }
 }
 
 // This method handles displaying incoming calls, accepting, declining, or ending calls using the FlutterCallkitIncoming and CometChat.
-
+String? activeCallSession;
 Future<void> displayIncomingCall(RemoteMessage rMessage) async {
-  dynamic ccMessage = jsonDecode(rMessage.data['message']);
-  String messageCategory = ccMessage['category'];
+
+  Map<String, dynamic> ccMessage = rMessage.data;
+
+  PayloadData callPayload = PayloadData.fromJson(ccMessage);
+
+  String messageCategory = callPayload.type ?? "";
+
   if (messageCategory == 'call') {
-    String callAction = ccMessage['data']['action'];
-    String uuid = ccMessage['data']['entities']['on']['entity']['sessionid'];
+    CallAction callAction = callPayload.callAction!;
+    String uuid = callPayload.sessionId ?? "";
     final callUUID = uuid;
-    String callerName = ccMessage['data']['entities']['by']['entity']['name'];
-    String callType = ccMessage['data']['entities']['on']['entity']['type'];
-    if (callAction == 'initiated') {
+    String callerName = callPayload.senderName ?? "";
+    CallType callType = callPayload.callType ?? CallType.none;
+    if (callAction == CallAction.initiated
+    && (callPayload.sentAt!=null && DateTime.now().isBefore(callPayload.sentAt!.add(const Duration(seconds: 40))))
+    ) {
       CallKitParams callKitParams = CallKitParams(
         id: callUUID,
         nameCaller: callerName,
         appName: 'notification_new',
-        type: (callType.toString() == "audio") ? 0 : 1,
+        type: (callType == CallType.audio) ? 0 : 1,
         textAccept: 'Accept',
         textDecline: 'Decline',
         duration: 40000,
@@ -54,12 +62,29 @@ Future<void> displayIncomingCall(RemoteMessage rMessage) async {
           backgroundColor: '#0955fa',
           actionColor: '#4CAF50',
           incomingCallNotificationChannelName: "Incoming Call",
+            isShowFullLockedScreen:false
         ),
+        ios: const IOSParams(
+          handleType: 'generic',
+          supportsVideo: true,
+          maximumCallGroups: 2,
+          maximumCallsPerCallGroup: 1,
+          audioSessionMode: 'default',
+          audioSessionActive: true,
+          audioSessionPreferredSampleRate: 44100.0,
+          audioSessionPreferredIOBufferDuration: 0.005,
+          supportsDTMF: true,
+          supportsHolding: true,
+          supportsGrouping: false,
+          supportsUngrouping: false,
+        ),
+
       );
       await FlutterCallkitIncoming.showCallkitIncoming(callKitParams);
 
       FlutterCallkitIncoming.onEvent.listen(
         (CallEvent? callEvent) async {
+
           switch (callEvent?.event) {
             case Event.actionCallIncoming:
               SharedPreferencesClass.init();
@@ -67,8 +92,11 @@ Future<void> displayIncomingCall(RemoteMessage rMessage) async {
             case Event.actionCallAccept:
               SharedPreferencesClass.setString(
                   "SessionId", callEvent?.body["id"]);
+              SharedPreferencesClass.setString(
+                  "callType", callEvent?.body["type"]==0?"audio":"video");
               break;
             case Event.actionCallDecline:
+              CometChatService().init();
               CometChatUIKitCalls.rejectCall(
                   callEvent?.body["id"], CallStatusConstants.rejected,
                   onSuccess: (Call call) async {
@@ -84,9 +112,10 @@ Future<void> displayIncomingCall(RemoteMessage rMessage) async {
                       "Unable to end call from incoming call screen ${e.message}");
                 }
               });
+
               break;
             case Event.actionCallEnded:
-              await FlutterCallkitIncoming.endCall(callEvent?.body['id']);
+              // await FlutterCallkitIncoming.endCall(callEvent?.body['id']);
               break;
             default:
               break;
@@ -104,6 +133,11 @@ Future<void> displayIncomingCall(RemoteMessage rMessage) async {
           }
         },
       );
+    } else if(callAction==CallAction.cancelled || callAction==CallAction.unanswered){
+      if(callPayload.sessionId!=null){
+        await FlutterCallkitIncoming.endCall(callPayload.sessionId ?? "");
+        activeCallSession=null;
+      }
     }
   }
 }
@@ -115,10 +149,11 @@ class FirebaseService {
   late final NotificationSettings _settings;
   late final Function registerToServer;
 
-  Future<void> init() async {
+  Future<void> init(BuildContext context) async {
     try {
+
       // 2. Initialize the Firebase
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
       // 3. Get FirebaseMessaging instance
       _firebaseMessaging = FirebaseMessaging.instance;
@@ -127,15 +162,13 @@ class FirebaseService {
       await requestPermissions();
 
       // 5. Setup notification listeners
-      await initListeners();
+      if (context.mounted) await initListeners(context);
 
       // 6. Fetch and register FCM token
       String? token = await _firebaseMessaging.getToken();
-      if (kDebugMode) {
-        debugPrint('FCM Token: $token');
-      }
+
       if (token != null) {
-        await CometChatService.registerToken(token, 'fcm');
+        PNRegistry.registerPNService(token, true, false);
       }
     } catch (e) {
       if (kDebugMode) {
@@ -145,7 +178,6 @@ class FirebaseService {
   }
 
   // method for requesting notification permission
-
   Future<void> requestPermissions() async {
     try {
       NotificationSettings settings =
@@ -166,7 +198,7 @@ class FirebaseService {
 
   // This method initializes Firebase message listeners to handle background notifications, token refresh, and user interactions with messages, after checking for user permission authorization.
 
-  Future<void> initListeners() async {
+  Future<void> initListeners(BuildContext context) async {
     try {
       if (_settings.authorizationStatus == AuthorizationStatus.authorized) {
         if (kDebugMode) {
@@ -174,36 +206,43 @@ class FirebaseService {
         }
 
         // For handling notification when the app is in the background
-        FirebaseMessaging.onBackgroundMessage(
-            firebaseMessagingBackgroundHandler);
+        FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
         // refresh token listener
         _firebaseMessaging.onTokenRefresh.listen((String token) async {
           if (kDebugMode) {
             debugPrint('Token refreshed: $token');
           }
-          await CometChatService.registerToken(token, 'fcm');
+
+          PNRegistry.registerPNService(token, true, false);
         });
 
         // This line sets up a listener that triggers the 'openNotification' method when a user taps on a notification and the app opens.
 
+        // Handling a notification click event when the app is in the background
         FirebaseMessaging.onMessageOpenedApp
             .listen((RemoteMessage message) async {
-          openNotification(message);
+          openNotification(context, message);
         });
 
+        // Handling the initial message received when the app is launched from dead (killed state)
+        // When the app is killed and a new notification arrives when user clicks on it
+        // It gets the data to which screen to open
         FirebaseMessaging.instance
             .getInitialMessage()
             .then((RemoteMessage? message) async {
           if (message != null) {
-            openNotification(message);
+
+            openNotification(context, message);
           }
         });
+        openFromTerminatedState(context);
       } else {
         if (kDebugMode) {
           debugPrint('User declined or has not accepted permission');
         }
       }
+
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Error initializing listeners: $e.');
@@ -213,17 +252,21 @@ class FirebaseService {
 
   // This method processes the incoming Firebase message to handle user or group notifications and carries out appropriate actions such as initiating a chat or call.
 
-  Future<void> openNotification(RemoteMessage? message) async {
+  Future<void> openNotification(BuildContext context, RemoteMessage? message) async {
     if (message != null) {
-      String response = message.data["message"];
-      dynamic parsedJson = jsonDecode(response);
-      final receiverType = parsedJson['receiverType'] ?? "";
+
+      Map<String, dynamic> data = message.data;
+
+      PayloadData payload = PayloadData.fromJson(data);
+      String messageCategory = payload.type ?? "";
+
+      final receiverType = payload.receiverType ?? "";
       User? sendUser;
       Group? sendGroup;
-      dynamic ccMessage = jsonDecode(message.data['message']);
-      String messageCategory = ccMessage['category'];
+
       if (receiverType == "user") {
-        final uid = parsedJson['sender'];
+        final uid = payload.sender ?? '';
+
         await CometChat.getUser(
           uid,
           onSuccess: (user) {
@@ -237,8 +280,8 @@ class FirebaseService {
           },
         );
       } else if (receiverType == "group") {
-        final guid =
-            parsedJson['data']['entities']['receiver']['entity']['guid'];
+        final guid = payload.receiver ?? '';
+
         await CometChat.getGroup(
           guid,
           onSuccess: (group) {
@@ -251,66 +294,69 @@ class FirebaseService {
           },
         );
       }
-      if (messageCategory == 'call') {
-        String callAction = ccMessage['data']['action'];
+
+      if (messageCategory == NotificationMessageTypeConstants.call) {
+
+        CallAction callAction = payload.callAction!;
         String uuid =
-            ccMessage['data']['entities']['on']['entity']['sessionid'];
-        String callType = ccMessage['data']['entities']['on']['entity']['type'];
-        if (callAction == 'initiated') {
-          if (receiverType == "user" && sendUser != null) {
+            payload.sessionId ?? "";
+
+        if (callAction == CallAction.initiated) {
+          if (receiverType == ReceiverTypeConstants.user && sendUser != null) {
             Call call = Call(
                 sessionId: uuid,
                 receiverUid: sendUser?.uid ?? "",
-                type: callType,
+                type: payload.callType?.value ?? "",
                 receiverType: receiverType);
-            NavigationService.navigatorKey.currentState?.push(
-              MaterialPageRoute(
-                builder: (context) => CometChatIncomingCall(
-                  call: call,
-                  user: sendUser,
-                ),
-              ),
-            );
-          } else if (receiverType == "group" && sendGroup != null) {
-            MainVideoContainerSetting videoSettings =
-                MainVideoContainerSetting();
-            videoSettings.setMainVideoAspectRatio("contain");
-            videoSettings.setNameLabelParams("top-left", true, "#000");
-            videoSettings.setZoomButtonParams("top-right", true);
-            videoSettings.setUserListButtonParams("top-left", true);
-            videoSettings.setFullScreenButtonParams("top-right", true);
 
-            CallSettingsBuilder callSettingsBuilder = (CallSettingsBuilder()
-              ..enableDefaultLayout = true
-              ..setMainVideoContainerSetting = videoSettings);
+            if (context.mounted) {
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (context) =>
+                    CometChatIncomingCall(
+                      call: call,
+                      user: sendUser,
+                    ),
+              ),);
 
-            NavigationService.navigatorKey.currentState?.push(
-              MaterialPageRoute(
-                builder: (context) => CometChatOngoingCall(
-                  callSettingsBuilder: callSettingsBuilder,
-                  sessionId: uuid,
-                ),
-              ),
-            );
+            }
+          }
+          } else if (receiverType == ReceiverTypeConstants.group && sendGroup != null) {
+          if(kDebugMode) {
+            debugPrint("we are in group call");
+          }
+        } else if(callAction==CallAction.cancelled){
+          if(activeCallSession!=null){
+
+            await FlutterCallkitIncoming.endCall(activeCallSession!);
+            activeCallSession=null;
+
           }
         }
       }
 
+
       // Navigating to the chat screen when messageCategory is message
-      if (messageCategory == 'message' &&
-              (receiverType == "user" && sendUser != null) ||
-          (receiverType == "group" && sendGroup != null)) {
-        NavigationService.navigatorKey.currentState?.push(
-          MaterialPageRoute(
-            builder: (context) => CometChatMessages(
-              user: sendUser,
-              group: sendGroup,
-            ),
-          ),
-        );
+      if (messageCategory == NotificationMessageTypeConstants.chat &&
+              (receiverType == ReceiverTypeConstants.user && sendUser != null) ||
+          (receiverType == ReceiverTypeConstants.group && sendGroup != null)) {
+
+        if(context.mounted) {
+          Future.delayed(const Duration(seconds: 2), () {
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (context) =>
+                  CometChatMessages(
+                    user: sendUser,
+                    group: sendGroup,
+                  ),
+            ),);
+          });
+
+        }
       }
     }
   }
+
+  String? activeCallSession;
 
   // Deletes fcm token
 
@@ -325,19 +371,15 @@ class FirebaseService {
   }
 
   // checks For navigation when app opens from terminated state when we accept call
-  checkForNavigation(context) {
+  openFromTerminatedState(context) {
     final sessionID = SharedPreferencesClass.getString("SessionId");
+    final callType = SharedPreferencesClass.getString("callType");
+
     if (sessionID.isNotEmpty) {
-      MainVideoContainerSetting videoSettings = MainVideoContainerSetting();
-      videoSettings.setMainVideoAspectRatio("contain");
-      videoSettings.setNameLabelParams("top-left", true, "#000");
-      videoSettings.setZoomButtonParams("top-right", true);
-      videoSettings.setUserListButtonParams("top-left", true);
-      videoSettings.setFullScreenButtonParams("top-right", true);
 
       CallSettingsBuilder callSettingsBuilder = (CallSettingsBuilder()
         ..enableDefaultLayout = true
-        ..setMainVideoContainerSetting = videoSettings);
+      ..setAudioOnlyCall = (callType == CallType.audio.value));
       CometChatUIKitCalls.acceptCall(sessionID, onSuccess: (Call call) {
         call.category = MessageCategoryConstants.call;
         CometChatCallEvents.ccCallAccepted(call);
@@ -347,20 +389,22 @@ class FirebaseService {
             builder: (context) => CometChatOngoingCall(
               callSettingsBuilder: callSettingsBuilder,
               sessionId: sessionID,
+              callWorkFlow:CallWorkFlow.defaultCalling,
             ),
           ),
         );
-        debugPrint('incoming call was accepted');
       }, onError: (e) {
-        debugPrint("Unable to accept call from incoming call screen");
+        debugPrint("Unable to accept call from incoming call screen ${e.details}");
       });
     }
   }
 
   // checks For navigation when app opens from background state when we accept call
-  initMethod(context) async {
+  resumeCallListeners(BuildContext context) async {
+
     FlutterCallkitIncoming.onEvent.listen(
       (CallEvent? callEvent) async {
+
         switch (callEvent?.event) {
           case Event.actionCallIncoming:
             CometChatUIKitCalls.init(
@@ -370,20 +414,14 @@ class FirebaseService {
             }, onError: (e) {
               debugPrint("CometChatUIKitCalls failed ${e.message}");
             });
+            activeCallSession=callEvent?.body["id"];
+
             break;
           case Event.actionCallAccept:
-            debugPrint("Incoming call has been accepted");
-            MainVideoContainerSetting videoSettings =
-                MainVideoContainerSetting();
-            videoSettings.setMainVideoAspectRatio("contain");
-            videoSettings.setNameLabelParams("top-left", true, "#000");
-            videoSettings.setZoomButtonParams("top-right", true);
-            videoSettings.setUserListButtonParams("top-left", true);
-            videoSettings.setFullScreenButtonParams("top-right", true);
-
+            final callType = callEvent?.body["type"];
             CallSettingsBuilder callSettingsBuilder = (CallSettingsBuilder()
               ..enableDefaultLayout = true
-              ..setMainVideoContainerSetting = videoSettings);
+            ..setAudioOnlyCall = (callType==CallType.audio.value));
 
             CometChatUIKitCalls.acceptCall(callEvent!.body["id"],
                 onSuccess: (Call call) {
@@ -418,7 +456,7 @@ class FirebaseService {
             });
             break;
           case Event.actionCallEnded:
-            await FlutterCallkitIncoming.endCall(callEvent?.body['id']);
+
             break;
           default:
             break;

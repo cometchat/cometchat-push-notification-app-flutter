@@ -3,6 +3,8 @@ import Flutter
 import PushKit
 import flutter_callkit_incoming
 import Foundation
+import Firebase
+import CallKit
 
 func createUUID(sessionid: String) -> String {
     let components = sessionid.components(separatedBy: ".")
@@ -29,143 +31,156 @@ func convertDictionaryToJsonString(dictionary: [String: Any]) -> String? {
     return nil
 }
 
+
+
 @UIApplicationMain
-@objc class AppDelegate: FlutterAppDelegate, PKPushRegistryDelegate {
-    override func application(
-        _ application: UIApplication,
-        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
-    ) -> Bool {
-        GeneratedPluginRegistrant.register(with: self)
-        if #available(iOS 11.0, *) {
-            UNUserNotificationCenter.current().delegate = self as? UNUserNotificationCenterDelegate
-        }
-        let appInfoChannel = FlutterMethodChannel(name: "com.cometchat.flutter_pn",
-            binaryMessenger: controller.binaryMessenger)
+class AppDelegate:FlutterAppDelegate, PKPushRegistryDelegate {
+    
+    var pushRegistry: PKPushRegistry!
+    
+
+   override func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+ GeneratedPluginRegistrant.register(with: self)
+       
+               UNUserNotificationCenter.current().delegate = self as UNUserNotificationCenterDelegate
+
+               // Request permission for notifications
+               UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { (granted, error) in
+                   // Handle the authorization result
+                   if granted {
+                       print("Notification authorization granted")
+                   } else {
+                       print("Notification authorization denied")
+                   }
+               }
+
+ let controller : FlutterViewController = window?.rootViewController as! FlutterViewController
+ let appInfoChannel = FlutterMethodChannel(name: "com.cometchat.flutter_pn",
+     binaryMessenger: controller.binaryMessenger)
+ 
+ appInfoChannel.setMethodCallHandler({
+       (call: FlutterMethodCall, result: @escaping FlutterResult) -> Void in
+       if call.method == "getAppInfo" {
+         var appInfo: [String: String] = [:]
+         appInfo["bundleId"] = Bundle.main.bundleIdentifier
+         appInfo["version"] = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+         result(appInfo)
+       } else if call.method == "endCall" {
+           if let activeCall = self.activeCallSession {
+               SwiftFlutterCallkitIncomingPlugin.sharedInstance?.endCall(activeCall)
+
+               result(true)
+           }else {
+           result(false)}
+         } else {
+         result(FlutterMethodNotImplemented)
+       }
+     })
+ 
+
         
-        appInfoChannel.setMethodCallHandler({
-              (call: FlutterMethodCall, result: @escaping FlutterResult) -> Void in
-              if call.method == "getAppInfo" {
-                var appInfo: [String: String] = [:]
-                appInfo["bundleId"] = Bundle.main.bundleIdentifier
-                appInfo["version"] = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
-                result(appInfo)
-              } else {
-                result(FlutterMethodNotImplemented)
-              }
-            })
-
-        //Setup VOIP
-        let mainQueue = DispatchQueue.main
-        let voipRegistry: PKPushRegistry = PKPushRegistry(queue: mainQueue)
-        voipRegistry.delegate = self
-        voipRegistry.desiredPushTypes = [PKPushType.voIP]
-
-        return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+        // Register for VoIP pushes
+        pushRegistry = PKPushRegistry(queue: DispatchQueue.main)
+        pushRegistry.delegate = self
+        pushRegistry.desiredPushTypes = [.voIP]
+        
+        return true
     }
 
-    // Call back from Recent history
-    override func application(_ application: UIApplication,
-                              continue userActivity: NSUserActivity,
-                              restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
-
-        guard let handleObj = userActivity.handle else {
-            return false
-        }
-
-        guard let isVideo = userActivity.isVideo else {
-            return false
-        }
-        let objData = handleObj.getDecryptHandle()
-        let nameCaller = objData["nameCaller"] as? String ?? ""
-        let handle = objData["handle"] as? String ?? ""
-        let data = flutter_callkit_incoming.Data(id: UUID().uuidString, nameCaller: nameCaller, handle: handle, type: isVideo ? 1 : 0)
-        //set more data...
-        //data.nameCaller = nameCaller
-        SwiftFlutterCallkitIncomingPlugin.sharedInstance?.startCall(data, fromPushKit: true)
-
-        return super.application(application, continue: userActivity, restorationHandler: restorationHandler)
-    }
-
+    // MARK: - PKPushRegistryDelegate
+    
     func pushRegistry(_ registry: PKPushRegistry, didUpdate credentials: PKPushCredentials, for type: PKPushType) {
-        print(credentials.token)
+        
         let deviceToken = credentials.token.map { String(format: "%02x", $0) }.joined()
         //Save deviceToken to your server
         SwiftFlutterCallkitIncomingPlugin.sharedInstance?.setDevicePushTokenVoIP(deviceToken)
     }
 
     func pushRegistry(_ registry: PKPushRegistry, didInvalidatePushTokenFor type: PKPushType) {
-        print("didInvalidatePushTokenFor")
+
         SwiftFlutterCallkitIncomingPlugin.sharedInstance?.setDevicePushTokenVoIP("")
     }
+    
 
+    var activeCallSession: flutter_callkit_incoming.Data?
+    
     // Handle incoming pushes
     func pushRegistry(_ registry: PKPushRegistry, didReceiveIncomingPushWith payload: PKPushPayload, for type: PKPushType, completion: @escaping () -> Void) {
-        print("didReceiveIncomingPushWith")
+        
+        
+        // Check if the app is in the foreground
+                if UIApplication.shared.applicationState == .active {
+                    
+                    // App is in the foreground, do nothing or perform any desired action
+                    return
+                }
+        
         guard type == .voIP else { return }
-        print("93 didReceiveIncomingPushWith")
 
-        if let userInfo = payload.dictionaryPayload as? [String : Any], let messageObject =
-            userInfo["message"], let dict = messageObject as? [String : Any] {
-            let category = dict["category"] as! String
+        if let payloadData = payload.dictionaryPayload as? [String : Any] {
+            
+            
+            let category = payloadData["type"] as! String
 
-            print("99 didReceiveIncomingPushWith category: \(category)")
+            
             switch category {
-            case "message": break
+            case "chat": break
             case "action": break
             case "custom": break
             case "call":
-                if let callDataObject = dict["data"], let callData = callDataObject as? [String : Any] {
-                    let callStatus = callData["action"] as! String
-                    print("99 didReceiveIncomingPushWith callStatus: \(callStatus)")
+                
+                    let callAction = payloadData["callAction"] as! String
+                
+                let senderName = payloadData["senderName"] as! String;
+                let handle = senderName
+                let sessionid = payloadData["sessionId"] as! String;
+                let callType = payloadData["callType"] as! String;
+                let callUUID = createUUID(sessionid: sessionid)
+                
+                let data = flutter_callkit_incoming.Data(id: callUUID, nameCaller: senderName, handle: handle, type: callType == "audio" ? 0:1 )
+                data.extra = ["message": convertDictionaryToJsonString(dictionary: payloadData)]
 
-                    switch callStatus {
+                    switch callAction {
                     case "initiated":
-                        if let entitiesDataObject = callData["entities"], let entitiesData = entitiesDataObject as? [String : Any] {
-                            if let byDataObject = entitiesData["by"], let byData = byDataObject as? [String : Any] {
-                                if let byEntityDataObject = byData["entity"], let byEntityData = byEntityDataObject  as? [String : Any] {
-                                    if let onDataObject = entitiesData["on"], let onData = onDataObject as? [String : Any] {
-                                        if let onEntityDataObject = onData["entity"], let onEntityData = onEntityDataObject  as? [String : Any] {
-                                            let nameCaller = byEntityData["name"] as! String;
-                                            let handle = nameCaller
-                                            let sessionid = onEntityData["sessionid"] as! String;
-                                            let callUUID = createUUID(sessionid: sessionid)
-                                            let data = flutter_callkit_incoming.Data(id: callUUID, nameCaller: nameCaller, handle: handle, type: 1)
-                                            data.extra = ["message": convertDictionaryToJsonString(dictionary: dict)]
-                                            data.duration = 55000 // has to be greater than the CometChat duration
-                                            SwiftFlutterCallkitIncomingPlugin.sharedInstance?.showCallkitIncoming(data, fromPushKit: true)
-                                        }
-                                    }
-                                }
-                            }
-                        }; break
+                                            
+                           data.duration = 55000 // has to be greater than the CometChat duration
+                        
+                            activeCallSession = data
+                            SwiftFlutterCallkitIncomingPlugin.sharedInstance?.showCallkitIncoming(data, fromPushKit: true)
+                            
+                     
+                           
+                                        break
                     case "unanswered", "cancelled", "rejected":
-                        if let entitiesDataObject = callData["entities"], let entitiesData = entitiesDataObject as? [String : Any] {
-                            if let byDataObject = entitiesData["by"], let byData = byDataObject as? [String : Any] {
-                                if let byEntityDataObject = byData["entity"], let byEntityData = byEntityDataObject  as? [String : Any] {
-                                    if let onDataObject = entitiesData["on"], let onData = onDataObject as? [String : Any] {
-                                        if let onEntityDataObject = onData["entity"], let onEntityData = onEntityDataObject  as? [String : Any] {
-                                            let nameCaller = byEntityData["name"] as! String;
-                                            let handle = nameCaller
-                                            let sessionid = onEntityData["sessionid"] as! String;
-                                            let callUUID = createUUID(sessionid: sessionid);
-
-                                            let data = flutter_callkit_incoming.Data(id: callUUID, nameCaller: nameCaller, handle: handle, type: 0)
-                                            data.extra = ["message": convertDictionaryToJsonString(dictionary: dict)]
-                                            SwiftFlutterCallkitIncomingPlugin.sharedInstance?.endCall(data)
-                                        }
-                                    }
-                                }
-                            }
-                        }; break
+                                SwiftFlutterCallkitIncomingPlugin.sharedInstance?.endCall(data)
+                        
+                                break
                     default: break
                     }
-                }; break
+                 break
             default: break
             }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            print("DispatchQueue.main.asyncAfter called")
+            
             completion()
         }
     }
+
+   
+    
+    // This method is called when a notification is received while the app is in the foreground
+       override func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+           // Check if the app is in the foreground
+           if UIApplication.shared.applicationState == .active {
+               // Suppress the notification when the app is in the foreground
+               completionHandler([])
+           } else {
+               // Allow the notification to be displayed when the app is in the background or terminated
+               completionHandler([.alert, .sound, .badge])
+           }
+       }
 }
+
+
+

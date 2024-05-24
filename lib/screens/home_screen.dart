@@ -19,18 +19,16 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, CallListener {
+
   @override
   void initState() {
     WidgetsBinding.instance.addObserver(this);
     super.initState();
-    if (useFcm) {
-      widget.notificationService.init();
       if (Platform.isAndroid) {
-        widget.notificationService.checkForNavigation(context);
-      }
+        widget.notificationService.init(context);
     } else {
-      widget.apnsServices.init();
+      widget.apnsServices.init(context);
     }
   }
 
@@ -38,7 +36,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
     if (state == AppLifecycleState.resumed) {
       if (useFcm && Platform.isAndroid) {
-        widget.notificationService.initMethod(context);
+        widget.notificationService.resumeCallListeners(context);
       }
     }
   }
@@ -57,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ConversationsConfiguration(showBackButton: false, appBarOptions: [
           IconButton(
             onPressed: () async {
-              await CometChatService.logout(context);
+              await CometChatService().logout(context);
             },
             icon: const Icon(
               Icons.logout,

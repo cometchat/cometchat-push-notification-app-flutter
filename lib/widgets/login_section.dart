@@ -57,7 +57,7 @@ class UserLoginButton extends StatelessWidget {
       color: Colors.black,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
       onPressed: () async{
-        CometChatService.login(
+        CometChatService().login(
             model.uid, context);
       },
       child: Row(

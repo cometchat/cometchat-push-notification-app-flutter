@@ -1,19 +1,31 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:cometchat_calls_uikit/cometchat_calls_uikit.dart';
 import 'package:cometchat_chat_uikit/cometchat_chat_uikit.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_pn/consts.dart';
 import 'package:flutter_pn/screens/guard_screen.dart';
 import 'package:flutter_pn/screens/home_screen.dart';
+
 import 'package:flutter_pn/services/demo_meta_info.dart';
-import 'package:flutter_pn/services/firebase_service.dart';
 
 import 'get_info.dart';
 
 
-class CometChatService {
-  static Future<bool> isAlreadyLoggedIn() async {
+class CometChatService with CallListener {
+
+  static final CometChatService _singleton = CometChatService._internal();
+
+  factory CometChatService() {
+    return _singleton;
+  }
+
+  CometChatService._internal();
+
+  Future<bool> isAlreadyLoggedIn() async {
     User? user = await CometChatUIKit.getLoggedInUser(
       onSuccess: (user) => user,
       onError: (e) {
@@ -25,7 +37,8 @@ class CometChatService {
     return user != null;
   }
 
-  static Future init() async {
+
+   Future init() async {
     UIKitSettings uiKitSettings = (UIKitSettingsBuilder()
       ..subscriptionType = CometChatSubscriptionType.allUsers
       ..region = CometChatConstants.region
@@ -33,7 +46,8 @@ class CometChatService {
       ..appId = CometChatConstants.appId
       ..authKey = CometChatConstants.authKey
       ..extensions = CometChatUIKitChatExtensions.getDefaultExtensions()
-      ..callingExtension = CometChatCallingExtension())
+      ..callingExtension = CometChatCallingExtension()
+    )
         .build();
 
     CometChatUIKit.init(
@@ -47,6 +61,7 @@ class CometChatService {
               "version": info["version"] ?? DemoMetaInfoConstants.version,
               "bundle": info["bundleId"] ?? DemoMetaInfoConstants.bundle,
               "platform": DemoMetaInfoConstants.platform,
+              "sampleAppFor": DemoMetaInfoConstants.sampleAppFor,
             });
           } catch (e) {
             if (kDebugMode) {
@@ -58,9 +73,11 @@ class CometChatService {
           debugPrint("Initialization failed with exception: ${e.message}");
         });
     debugPrint("CallingExtension enable with context called in login");
+    CometChat.addCallListener("CometChatService_CallListener", this);
   }
 
 
+  @Deprecated('This method is deprecated please use PNRegistry.registerPNService() instead')
   static Future<void> registerToken(String token, String type) async {
     final Map<String, dynamic> body = type == 'apns'
         ? {"apnsToken": token}
@@ -78,7 +95,7 @@ class CometChatService {
         });
   }
 
-  static Future<User?> getLoggedInUser() async {
+   Future<User?> getLoggedInUser() async {
     User? user = await CometChatUIKit.getLoggedInUser(
       onSuccess: (user) => user,
       onError: (e) {
@@ -88,11 +105,15 @@ class CometChatService {
     return user;
   }
 
-  static Future<bool> logout(BuildContext context) async {
+   Future<bool> logout(BuildContext context) async {
     showLoadingIndicatorDialog(context);
+    await PNRegistry.unregisterPNService();
+    CometChat.removeCallListener("CometChatService_CallListener");
     await CometChat.logout(
       onSuccess: (message) {
-        FirebaseService().deleteToken();
+        if(Platform.isAndroid) {
+          FirebaseMessaging.instance.deleteToken();
+        }
         Navigator.of(context).pop();
         Navigator.of(context).push(MaterialPageRoute(
           builder: (context) => const GuardScreen(),
@@ -106,19 +127,69 @@ class CometChatService {
     return true;
   }
 
-  static login(String uid, context) async {
+   login(String uid,BuildContext context) async {
     showLoadingIndicatorDialog(context);
-    User? _user = await CometChat.getLoggedInUser();
+    User? user = await CometChatUIKit.getLoggedInUser();
     try {
-      if (_user != null) {
-        await CometChatUIKit.logout(onSuccess: (_) {}, onError: (_) {});
+      if (user != null) {
+        await PNRegistry.unregisterPNService();
+        await CometChatUIKit.logout(onSuccess: (_) {
+        }, onError: (_) {});
       }
     } catch (_) {}
-    _user = await CometChatUIKit.login(uid);
-    Navigator.of(context).pop();
-    if (_user != null) {
-      Navigator.push(
-          context, MaterialPageRoute(builder: (context) => HomeScreen()));
+    user = await CometChatUIKit.login(uid,onSuccess: (user) {
+    },);
+    if(context.mounted) {
+      Navigator.of(context).pop();
+      if (user != null) {
+        Navigator.push(
+            context, MaterialPageRoute(builder: (context) => HomeScreen()));
+      }
     }
+  }
+
+  @override
+  void onIncomingCallCancelled(Call call) async{
+    try {
+      await FlutterCallkitIncoming.endCall(call.sessionId ?? "");
+    } catch (e) {
+      debugPrint("onIncomingCallCancelled: $e");
+    }
+  }
+}
+
+extension PNRegistry on CometChatService {
+  static Future<String?> registerPNService(String token,bool isFcm, bool isVoip) async{
+    return await CometChatNotifications.registerPushToken(
+      getPushPlatform(isFcm, isVoip),
+      providerId: getProviderId(isFcm),
+      fcmToken: isFcm? token:null,
+      deviceToken: !isFcm && !isVoip ? token : null,
+      voipToken: !isFcm && isVoip ? token : null,
+      onSuccess: (response) {
+        debugPrint("registerPushToken:success ${response.toString()}");
+      },
+      onError: (e) {
+        debugPrint("registerPushToken:error ${e.toString()}");
+      },
+    );
+  }
+
+  static Future<String?> unregisterPNService() async{
+    return await CometChatNotifications.unregisterPushToken(onSuccess: (response) {
+      debugPrint("Token has been unregistered successfully => ${response.toString()}");
+    },
+        onError: (e) {
+          debugPrint("unregisterPushToken:error ${e.toString()}");
+        }
+    );
+  }
+
+  static String getProviderId(bool isFcm) {
+    return  isFcm ? "comet-push-notif" : "comet-push-notif-apns";
+  }
+
+  static PushPlatforms getPushPlatform(bool isFcm, bool isVoip) {
+    return  isFcm ?( Platform.isAndroid ? PushPlatforms.FCM_FLUTTER_ANDROID:PushPlatforms.FCM_FLUTTER_IOS) : (isVoip? PushPlatforms.APNS_FLUTTER_VOIP:PushPlatforms.APNS_FLUTTER_DEVICE);
   }
 }
