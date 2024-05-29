@@ -7,7 +7,7 @@
 The CometChat [Flutter Push Notifications (Extension)](https://www.cometchat.com/docs-beta/extensions/flutter-push-notifications) Sample App is capable of handling push notifications for one-on-one (private), group messaging, and even call notifications. This sample app enables users to send and receive text messages, make and receive calls, and effectively displays push notifications for these interactions.
 
 > [!NOTE]
-> If you use Enhanced Push Notifications, please refer to our [Flutter Enhanced Push Notifications (Beta)](https://github.com/cometchat/cometchat-push-notification-app-flutter) Sample app for guidance.
+> If you wish to try Enhanced Push Notifications, please refer to our [Flutter Enhanced Push Notifications (Beta)](https://github.com/cometchat/cometchat-push-notification-app-flutter) sample app.
 
 ## Pre-requisite
 
