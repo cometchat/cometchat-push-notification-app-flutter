@@ -12,7 +12,7 @@ In our sample app:
 - Apple Push Notification (APN) is used for displaying push notifications in iOS.
 
 > [!NOTE]
-> If you use Push Notifications (Extension), please refer to our [Flutter Push Notifications (Extension)](https://github.com/cometchat/cometchat-push-notification-app-flutter/tree/v4-push-notifications-extension) Sample app for guidance.
+> If you are using Push Notifications (Extension), please refer to our [Flutter Push Notifications (Extension)](https://github.com/cometchat/cometchat-push-notification-app-flutter/tree/v4-push-notifications-extension) sample app.
 
 ## Pre-requisite
 
