@@ -59,7 +59,7 @@ Future<void> displayIncomingCall(RemoteMessage rMessage) async {
       await FlutterCallkitIncoming.showCallkitIncoming(callKitParams);
 
       FlutterCallkitIncoming.onEvent.listen(
-        (CallEvent? callEvent) async {
+            (CallEvent? callEvent) async {
           switch (callEvent?.event) {
             case Event.actionCallIncoming:
               SharedPreferencesClass.init();
@@ -72,13 +72,13 @@ Future<void> displayIncomingCall(RemoteMessage rMessage) async {
               CometChatUIKitCalls.rejectCall(
                   callEvent?.body["id"], CallStatusConstants.rejected,
                   onSuccess: (Call call) async {
-                call.category = MessageCategoryConstants.call;
-                CometChatCallEvents.ccCallRejected(call);
-                await FlutterCallkitIncoming.endCall(callEvent?.body['id']);
-                if (kDebugMode) {
-                  debugPrint('incoming call was rejected');
-                }
-              }, onError: (e) {
+                    call.category = MessageCategoryConstants.call;
+                    CometChatCallEvents.ccCallRejected(call);
+                    await FlutterCallkitIncoming.endCall(callEvent?.body['id']);
+                    if (kDebugMode) {
+                      debugPrint('incoming call was rejected');
+                    }
+                  }, onError: (e) {
                 if (kDebugMode) {
                   debugPrint(
                       "Unable to end call from incoming call screen ${e.message}");
@@ -149,7 +149,7 @@ class FirebaseService {
   Future<void> requestPermissions() async {
     try {
       NotificationSettings settings =
-          await _firebaseMessaging.requestPermission(
+      await _firebaseMessaging.requestPermission(
         alert: true,
         badge: true,
         provisional: false,
@@ -238,7 +238,7 @@ class FirebaseService {
         );
       } else if (receiverType == "group") {
         final guid =
-            parsedJson['data']['entities']['receiver']['entity']['guid'];
+        parsedJson['data']['entities']['receiver']['entity']['guid'];
         await CometChat.getGroup(
           guid,
           onSuccess: (group) {
@@ -254,7 +254,7 @@ class FirebaseService {
       if (messageCategory == 'call') {
         String callAction = ccMessage['data']['action'];
         String uuid =
-            ccMessage['data']['entities']['on']['entity']['sessionid'];
+        ccMessage['data']['entities']['on']['entity']['sessionid'];
         String callType = ccMessage['data']['entities']['on']['entity']['type'];
         if (callAction == 'initiated') {
           if (receiverType == "user" && sendUser != null) {
@@ -273,12 +273,7 @@ class FirebaseService {
             );
           } else if (receiverType == "group" && sendGroup != null) {
             MainVideoContainerSetting videoSettings =
-                MainVideoContainerSetting();
-            videoSettings.setMainVideoAspectRatio("contain");
-            videoSettings.setNameLabelParams("top-left", true, "#000");
-            videoSettings.setZoomButtonParams("top-right", true);
-            videoSettings.setUserListButtonParams("top-left", true);
-            videoSettings.setFullScreenButtonParams("top-right", true);
+            MainVideoContainerSetting();
 
             CallSettingsBuilder callSettingsBuilder = (CallSettingsBuilder()
               ..enableDefaultLayout = true
@@ -298,7 +293,7 @@ class FirebaseService {
 
       // Navigating to the chat screen when messageCategory is message
       if (messageCategory == 'message' &&
-              (receiverType == "user" && sendUser != null) ||
+          (receiverType == "user" && sendUser != null) ||
           (receiverType == "group" && sendGroup != null)) {
         NavigationService.navigatorKey.currentState?.push(
           MaterialPageRoute(
@@ -329,11 +324,6 @@ class FirebaseService {
     final sessionID = SharedPreferencesClass.getString("SessionId");
     if (sessionID.isNotEmpty) {
       MainVideoContainerSetting videoSettings = MainVideoContainerSetting();
-      videoSettings.setMainVideoAspectRatio("contain");
-      videoSettings.setNameLabelParams("top-left", true, "#000");
-      videoSettings.setZoomButtonParams("top-right", true);
-      videoSettings.setUserListButtonParams("top-left", true);
-      videoSettings.setFullScreenButtonParams("top-right", true);
 
       CallSettingsBuilder callSettingsBuilder = (CallSettingsBuilder()
         ..enableDefaultLayout = true
@@ -360,26 +350,21 @@ class FirebaseService {
   // checks For navigation when app opens from background state when we accept call
   initMethod(context) async {
     FlutterCallkitIncoming.onEvent.listen(
-      (CallEvent? callEvent) async {
+          (CallEvent? callEvent) async {
         switch (callEvent?.event) {
           case Event.actionCallIncoming:
             CometChatUIKitCalls.init(
                 CometChatConstants.appId, CometChatConstants.region,
                 onSuccess: (p0) {
-              debugPrint("CometChatUIKitCalls initialized successfully");
-            }, onError: (e) {
+                  debugPrint("CometChatUIKitCalls initialized successfully");
+                }, onError: (e) {
               debugPrint("CometChatUIKitCalls failed ${e.message}");
             });
             break;
           case Event.actionCallAccept:
             debugPrint("Incoming call has been accepted");
             MainVideoContainerSetting videoSettings =
-                MainVideoContainerSetting();
-            videoSettings.setMainVideoAspectRatio("contain");
-            videoSettings.setNameLabelParams("top-left", true, "#000");
-            videoSettings.setZoomButtonParams("top-right", true);
-            videoSettings.setUserListButtonParams("top-left", true);
-            videoSettings.setFullScreenButtonParams("top-right", true);
+            MainVideoContainerSetting();
 
             CallSettingsBuilder callSettingsBuilder = (CallSettingsBuilder()
               ..enableDefaultLayout = true
@@ -387,30 +372,30 @@ class FirebaseService {
 
             CometChatUIKitCalls.acceptCall(callEvent!.body["id"],
                 onSuccess: (Call call) {
-              call.category = MessageCategoryConstants.call;
-              CometChatCallEvents.ccCallAccepted(call);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CometChatOngoingCall(
-                    callSettingsBuilder: callSettingsBuilder,
-                    sessionId: callEvent.body["id"],
-                  ),
-                ),
-              );
-            }, onError: (e) {
-              debugPrint(
-                  "Unable to accept call from incoming call screen ${e.message}");
-            });
+                  call.category = MessageCategoryConstants.call;
+                  CometChatCallEvents.ccCallAccepted(call);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CometChatOngoingCall(
+                        callSettingsBuilder: callSettingsBuilder,
+                        sessionId: callEvent.body["id"],
+                      ),
+                    ),
+                  );
+                }, onError: (e) {
+                  debugPrint(
+                      "Unable to accept call from incoming call screen ${e.message}");
+                });
             break;
           case Event.actionCallDecline:
             CometChatUIKitCalls.rejectCall(
                 callEvent?.body["id"], CallStatusConstants.rejected,
                 onSuccess: (Call call) {
-              call.category = MessageCategoryConstants.call;
-              CometChatCallEvents.ccCallRejected(call);
-              debugPrint('incoming call was cancelled');
-            }, onError: (e) {
+                  call.category = MessageCategoryConstants.call;
+                  CometChatCallEvents.ccCallRejected(call);
+                  debugPrint('incoming call was cancelled');
+                }, onError: (e) {
               debugPrint(
                   "Unable to end call from incoming call screen ${e.message}");
               debugPrint(

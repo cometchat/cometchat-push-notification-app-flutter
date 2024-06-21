@@ -11,7 +11,6 @@ import 'package:flutter_pn/services/firebase_service.dart';
 
 import 'get_info.dart';
 
-
 class CometChatService {
   static Future<bool> isAlreadyLoggedIn() async {
     User? user = await CometChatUIKit.getLoggedInUser(
@@ -60,7 +59,6 @@ class CometChatService {
     debugPrint("CallingExtension enable with context called in login");
   }
 
-
   static Future<void> registerToken(String token, String type) async {
     final Map<String, dynamic> body = type == 'apns'
         ? {"apnsToken": token}
@@ -108,15 +106,15 @@ class CometChatService {
 
   static login(String uid, context) async {
     showLoadingIndicatorDialog(context);
-    User? _user = await CometChat.getLoggedInUser();
+    User? user = await CometChat.getLoggedInUser();
     try {
-      if (_user != null) {
+      if (user != null) {
         await CometChatUIKit.logout(onSuccess: (_) {}, onError: (_) {});
       }
     } catch (_) {}
-    _user = await CometChatUIKit.login(uid);
+    user = await CometChatUIKit.login(uid);
     Navigator.of(context).pop();
-    if (_user != null) {
+    if (user != null) {
       Navigator.push(
           context, MaterialPageRoute(builder: (context) => HomeScreen()));
     }

@@ -117,11 +117,6 @@ class APNSService with CometChatCallsEventsListener {
           case Event.actionCallAccept:
             MainVideoContainerSetting videoSettings =
             MainVideoContainerSetting();
-            videoSettings.setMainVideoAspectRatio("contain");
-            videoSettings.setNameLabelParams("top-left", true, "#000");
-            videoSettings.setZoomButtonParams("top-right", true);
-            videoSettings.setUserListButtonParams("top-left", true);
-            videoSettings.setFullScreenButtonParams("top-right", true);
 
             CallSettingsBuilder callSettingsBuilder = (CallSettingsBuilder()
               ..enableDefaultLayout = true
