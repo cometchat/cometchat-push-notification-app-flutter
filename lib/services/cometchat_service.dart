@@ -186,7 +186,7 @@ extension PNRegistry on CometChatService {
   }
 
   static String getProviderId(bool isFcm) {
-    return  isFcm ? "comet-push-notif" : "comet-push-notif-apns";
+    return  isFcm ? CometChatConstants.fcmProviderId: CometChatConstants.apnProviderId;
   }
 
   static PushPlatforms getPushPlatform(bool isFcm, bool isVoip) {
